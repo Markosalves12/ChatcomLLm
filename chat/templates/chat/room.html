@@ -1,359 +1,50 @@
 <!-- chat/templates/chat/room.html -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>{{ room_name }} · Chat</title>
-    <style>
-        :root {
-            --messenger: #0084ff;
-            --messenger-grad: linear-gradient(135deg, #00b2ff 0%, #006aff 50%, #a033ff 100%);
-            --bg: #ffffff;
-            --header-border: #e4e6eb;
-            --bubble-other: #f0f2f5;
-            --text: #050505;
-            --muted: #65676b;
-            --error-bg: #ffebe9;
-            --error-text: #c62828;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background: #f0f2f5;
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-        }
-        .app {
-            width: 100%;
-            max-width: 820px;
-            height: 100vh;
-            height: 100dvh;
-            background: var(--bg);
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 0 20px rgba(0,0,0,.08);
-        }
-
-        /* Cabeçalho */
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--header-border);
-            box-shadow: 0 1px 2px rgba(0,0,0,.05);
-        }
-        .back {
-            color: var(--messenger);
-            text-decoration: none;
-            font-size: 26px;
-            line-height: 1;
-            padding: 0 4px;
-        }
-        .avatar {
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            background: var(--messenger-grad);
-            color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700;
-            font-size: 16px;
-            position: relative;
-            flex-shrink: 0;
-        }
-        .avatar.small { width: 28px; height: 28px; font-size: 12px; }
-        .avatar .dot {
-            position: absolute; right: 0; bottom: 0;
-            width: 12px; height: 12px; border-radius: 50%;
-            background: #31a24c; border: 2px solid #fff;
-        }
-        .avatar .dot.offline { background: #bcc0c4; }
-        .title { flex: 1; min-width: 0; }
-        .title h1 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .title p { font-size: 12px; color: var(--muted); }
-
-        /* Mensagens */
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .empty {
-            margin: auto;
-            text-align: center;
-            color: var(--muted);
-        }
-        .empty .avatar { width: 72px; height: 72px; font-size: 28px; margin: 0 auto 12px; }
-        .empty h2 { color: var(--text); font-size: 18px; margin-bottom: 4px; }
-
-        .row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
-        .row.user { justify-content: flex-end; }
-        .row.user + .row.assistant, .row.assistant + .row.user,
-        .row.error + .row, .row + .row.error { margin-top: 10px; }
-        .row .avatar-slot { width: 28px; flex-shrink: 0; }
-
-        .bubble {
-            max-width: min(70%, 520px);
-            padding: 8px 12px;
-            border-radius: 18px;
-            font-size: 15px;
-            line-height: 1.35;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            animation: pop .18s ease-out;
-        }
-        .row.user .bubble {
-            background: var(--messenger);
-            color: #fff;
-        }
-        .row.assistant .bubble { background: var(--bubble-other); }
-        .row.error .bubble {
-            background: var(--error-bg);
-            color: var(--error-text);
-            margin: 0 auto;
-            font-size: 13px;
-        }
-        /* Cantos agrupados estilo Messenger */
-        .row.user + .row.user .bubble { border-top-right-radius: 4px; }
-        .row.user:has(+ .row.user) .bubble { border-bottom-right-radius: 4px; }
-        .row.assistant + .row.assistant .bubble { border-top-left-radius: 4px; }
-        .row.assistant:has(+ .row.assistant) .bubble { border-bottom-left-radius: 4px; }
-
-        .time {
-            text-align: center;
-            font-size: 11px;
-            color: var(--muted);
-            margin: 12px 0 6px;
-        }
-
-        /* Digitando... */
-        .typing { display: inline-flex; gap: 4px; padding: 12px 14px; }
-        .typing span {
-            width: 7px; height: 7px; border-radius: 50%;
-            background: #90949c;
-            animation: blink 1.2s infinite ease-in-out;
-        }
-        .typing span:nth-child(2) { animation-delay: .2s; }
-        .typing span:nth-child(3) { animation-delay: .4s; }
-
-        /* Campo de envio */
-        .composer {
-            display: flex;
-            align-items: flex-end;
-            gap: 8px;
-            padding: 10px 12px;
-            border-top: 1px solid var(--header-border);
-        }
-        .composer textarea {
-            flex: 1;
-            resize: none;
-            border: none;
-            outline: none;
-            background: var(--bubble-other);
-            border-radius: 20px;
-            padding: 9px 14px;
-            font: inherit;
-            font-size: 15px;
-            max-height: 120px;
-            line-height: 1.35;
-        }
-        .send {
-            width: 36px; height: 36px;
-            border: none;
-            background: transparent;
-            color: var(--messenger);
-            cursor: pointer;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            transition: background .15s;
-        }
-        .send:hover { background: var(--bubble-other); }
-        .send:disabled { color: #bcc0c4; cursor: default; background: transparent; }
-        .send svg { width: 22px; height: 22px; }
-
-        @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
-
-        @media (max-width: 600px) {
-            .bubble { max-width: 80%; }
-        }
-    </style>
+    <title>Chat Room</title>
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <a class="back" href="/chat/" title="Voltar">&#8249;</a>
-            <div class="avatar" id="header-avatar">
-                <span id="header-initial"></span>
-                <span class="dot offline" id="status-dot"></span>
-            </div>
-            <div class="title">
-                <h1 id="room-title"></h1>
-                <p id="status-text">Conectando...</p>
-            </div>
-        </header>
-
-        <main class="messages" id="chat-log">
-            <div class="empty" id="empty-state">
-                <div class="avatar" id="empty-avatar"></div>
-                <h2 id="empty-title"></h2>
-                <p>Envie uma mensagem para começar a conversa.</p>
-            </div>
-        </main>
-
-        <footer class="composer">
-            <textarea id="chat-message-input" rows="1" placeholder="Aa"></textarea>
-            <button class="send" id="chat-message-submit" title="Enviar" disabled>
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 20.85 12.92a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
-            </button>
-        </footer>
-    </div>
-
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
+    <input id="chat-message-input" type="text" size="100"><br>
+    <input id="chat-message-submit" type="button" value="Send">
     {{ room_name|json_script:"room-name" }}
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
-        const initial = (roomName[0] || '?').toUpperCase();
 
-        document.getElementById('room-title').textContent = roomName;
-        document.getElementById('empty-title').textContent = roomName;
-        document.getElementById('header-initial').textContent = initial;
-        document.getElementById('empty-avatar').textContent = initial;
-
-        const log = document.getElementById('chat-log');
-        const input = document.getElementById('chat-message-input');
-        const sendBtn = document.getElementById('chat-message-submit');
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-        let typingRow = null;
-        let lastTimeLabel = 0;
-
-        function scrollToBottom() {
-            log.scrollTop = log.scrollHeight;
-        }
-
-        function maybeAddTime() {
-            const now = Date.now();
-            if (now - lastTimeLabel > 5 * 60 * 1000) {
-                const t = document.createElement('div');
-                t.className = 'time';
-                t.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                log.appendChild(t);
-                lastTimeLabel = now;
-            }
-        }
-
-        function makeAvatarSlot(show) {
-            const slot = document.createElement('div');
-            slot.className = 'avatar-slot';
-            if (show) {
-                const a = document.createElement('div');
-                a.className = 'avatar small';
-                a.textContent = 'IA';
-                slot.appendChild(a);
-            }
-            return slot;
-        }
-
-        // Só o último balão de uma sequência da IA mostra o avatar
-        function refreshAvatars() {
-            log.querySelectorAll('.row.assistant').forEach(function(row) {
-                const next = row.nextElementSibling;
-                const isLast = !(next && next.classList.contains('assistant'));
-                const slot = row.querySelector('.avatar-slot');
-                slot.replaceWith(makeAvatarSlot(isLast));
-            });
-        }
-
-        function addMessage(role, text) {
-            const empty = document.getElementById('empty-state');
-            if (empty) empty.remove();
-            removeTyping();
-            maybeAddTime();
-
-            const row = document.createElement('div');
-            row.className = 'row ' + role;
-            if (role === 'assistant') row.appendChild(makeAvatarSlot(true));
-
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble';
-            bubble.textContent = text;
-            row.appendChild(bubble);
-
-            log.appendChild(row);
-            refreshAvatars();
-            scrollToBottom();
-        }
-
-        function showTyping() {
-            removeTyping();
-            typingRow = document.createElement('div');
-            typingRow.className = 'row assistant';
-            typingRow.appendChild(makeAvatarSlot(true));
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble typing';
-            bubble.innerHTML = '<span></span><span></span><span></span>';
-            typingRow.appendChild(bubble);
-            log.appendChild(typingRow);
-            scrollToBottom();
-        }
-
-        function removeTyping() {
-            if (typingRow) { typingRow.remove(); typingRow = null; }
-        }
-
-        function setOnline(online) {
-            statusDot.classList.toggle('offline', !online);
-            statusText.textContent = online ? 'Ativo agora' : 'Desconectado';
-        }
-
-        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const chatSocket = new WebSocket(protocol + window.location.host + '/ws/chat/' + roomName + '/');
-
-        chatSocket.onopen = function() { setOnline(true); };
+        const chatSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
-            const role = data.role || 'assistant';
-            addMessage(role, data.message);
-            if (role === 'user') showTyping();
+            document.querySelector('#chat-log').value += (data.message + '\n');
         };
 
-        chatSocket.onclose = function() {
-            removeTyping();
-            setOnline(false);
+        chatSocket.onclose = function(e) {
             console.error('Chat socket closed unexpectedly');
         };
 
-        function autoResize() {
-            input.style.height = 'auto';
-            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-            sendBtn.disabled = !input.value.trim();
-        }
-
-        function send() {
-            const message = input.value.trim();
-            if (!message || chatSocket.readyState !== WebSocket.OPEN) return;
-            chatSocket.send(JSON.stringify({ 'message': message }));
-            input.value = '';
-            autoResize();
-            input.focus();
-        }
-
-        input.addEventListener('input', autoResize);
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.key === 'Enter') {  // enter, return
+                document.querySelector('#chat-message-submit').click();
             }
-        });
-        sendBtn.addEventListener('click', send);
-        input.focus();
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
+        };
     </script>
 </body>
 </html>
