@@ -1,50 +1,220 @@
 <!-- chat/templates/chat/room.html -->
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8"/>
-    <title>Chat Room</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Chat</title>
+    <style>
+        :root {
+            --verde: #00a884;
+            --verde-escuro: #008069;
+            --fundo: #eae6df;
+            --chat: #efeae2;
+            --minha: #d9fdd3;
+            --dela: #ffffff;
+            --cinza: #f0f2f5;
+            --texto: #111b21;
+            --texto-2: #667781;
+            --erro: #fde2e1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+            background: var(--fundo); color: var(--texto); min-height: 100vh;
+        }
+        body::before {
+            content: ""; position: fixed; top: 0; left: 0; right: 0; height: 127px;
+            background: var(--verde-escuro); z-index: -1;
+        }
+        .app {
+            max-width: 900px; margin: 19px auto; height: calc(100vh - 38px);
+            display: flex; flex-direction: column; box-shadow: 0 6px 18px rgba(11,20,26,.15);
+            border-radius: 4px; overflow: hidden;
+        }
+        header {
+            background: var(--cinza); padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid #e9edef;
+        }
+        .voltar { text-decoration: none; color: #54656f; font-size: 22px; line-height: 1; padding: 4px; }
+        .avatar {
+            width: 40px; height: 40px; border-radius: 50%; background: var(--verde); color: #fff;
+            display: grid; place-items: center; font-weight: 600;
+        }
+        .titulo h1 { font-size: 16px; font-weight: 500; }
+        .titulo p { font-size: 13px; color: var(--texto-2); }
+        #chat-log {
+            flex: 1; overflow-y: auto; padding: 20px 7%;
+            background-color: var(--chat);
+            background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
+            background-size: 18px 18px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .dia {
+            align-self: center; background: #fff; color: var(--texto-2); font-size: 12.5px;
+            padding: 5px 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px .5px rgba(11,20,26,.13);
+        }
+        .msg {
+            max-width: 65%; padding: 6px 9px 8px; border-radius: 8px; font-size: 14.2px; line-height: 19px;
+            box-shadow: 0 1px .5px rgba(11,20,26,.13); position: relative; white-space: pre-wrap;
+            word-wrap: break-word; animation: entra .15s ease-out;
+        }
+        .msg .hora { float: right; font-size: 11px; color: var(--texto-2); margin: 8px 0 -4px 12px; }
+        .msg.user { align-self: flex-end; background: var(--minha); border-top-right-radius: 0; }
+        .msg.assistant { align-self: flex-start; background: var(--dela); border-top-left-radius: 0; }
+        .msg.error { align-self: center; background: var(--erro); font-size: 13px; max-width: 85%; }
+        .msg.user .hora::after { content: " ✓✓"; color: #53bdeb; }
+        .digitando { display: inline-flex; gap: 4px; padding: 4px 2px; }
+        .digitando span {
+            width: 7px; height: 7px; border-radius: 50%; background: #9aa5ab;
+            animation: pula 1.2s infinite;
+        }
+        .digitando span:nth-child(2) { animation-delay: .15s; }
+        .digitando span:nth-child(3) { animation-delay: .3s; }
+        @keyframes pula { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+        @keyframes entra { from { opacity: 0; transform: translateY(4px); } }
+        footer {
+            background: var(--cinza); padding: 8px 16px; display: flex; align-items: flex-end; gap: 10px;
+        }
+        #chat-message-input {
+            flex: 1; border: 0; border-radius: 8px; padding: 10px 14px; font-size: 15px;
+            font-family: inherit; resize: none; outline: none; max-height: 120px; line-height: 20px;
+            background: #fff;
+        }
+        #chat-message-submit {
+            width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--verde);
+            color: #fff; cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
+        }
+        #chat-message-submit:hover { background: var(--verde-escuro); }
+        #chat-message-submit:disabled { background: #b3c0c6; cursor: default; }
+        @media (max-width: 900px) {
+            .app { margin: 0; height: 100vh; border-radius: 0; }
+            .msg { max-width: 85%; }
+            #chat-log { padding: 16px 4%; }
+        }
+    </style>
 </head>
 <body>
-    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
-    <input id="chat-message-input" type="text" size="100"><br>
-    <input id="chat-message-submit" type="button" value="Send">
-    {{ room_name|json_script:"room-name" }}
-    <script>
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+<div class="app">
+    <header>
+        <a class="voltar" href="/chat/" title="Voltar">&#8592;</a>
+        <div class="avatar" id="avatar">IA</div>
+        <div class="titulo">
+            <h1 id="titulo">Chat</h1>
+            <p id="status">conectando...</p>
+        </div>
+    </header>
 
-        const chatSocket = new WebSocket(
-            'ws://'
-            + window.location.host
-            + '/ws/chat/'
-            + roomName
-            + '/'
-        );
+    <div id="chat-log">
+        <div class="dia">HOJE</div>
+    </div>
 
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            document.querySelector('#chat-log').value += (data.message + '\n');
-        };
+    <footer>
+        <textarea id="chat-message-input" rows="1" placeholder="Digite uma mensagem"></textarea>
+        <button id="chat-message-submit" title="Enviar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+    </footer>
+</div>
 
-        chatSocket.onclose = function(e) {
-            console.error('Chat socket closed unexpectedly');
-        };
+{{ room_name|json_script:"room-name" }}
+<script>
+    const roomName = JSON.parse(document.getElementById("room-name").textContent);
+    const log = document.querySelector("#chat-log");
+    const input = document.querySelector("#chat-message-input");
+    const botao = document.querySelector("#chat-message-submit");
+    const status = document.querySelector("#status");
+    let digitando = null;
 
-        document.querySelector('#chat-message-input').focus();
-        document.querySelector('#chat-message-input').onkeyup = function(e) {
-            if (e.key === 'Enter') {  // enter, return
-                document.querySelector('#chat-message-submit').click();
-            }
-        };
+    document.querySelector("#titulo").textContent = roomName.replace(/_/g, " ");
+    document.querySelector("#avatar").textContent = roomName[0].toUpperCase();
+    document.title = roomName.replace(/_/g, " ") + " · Chat";
 
-        document.querySelector('#chat-message-submit').onclick = function(e) {
-            const messageInputDom = document.querySelector('#chat-message-input');
-            const message = messageInputDom.value;
-            chatSocket.send(JSON.stringify({
-                'message': message
-            }));
-            messageInputDom.value = '';
-        };
-    </script>
+    const horaAgora = () => new Date().toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
+
+    function salvarSala(ultima) {
+        const salas = JSON.parse(localStorage.getItem("salas") || "{}");
+        salas[roomName] = {quando: Date.now(), ultima: ultima || (salas[roomName] || {}).ultima || ""};
+        localStorage.setItem("salas", JSON.stringify(salas));
+    }
+    salvarSala();
+
+    function rolar() { log.scrollTop = log.scrollHeight; }
+
+    function addMensagem(role, texto) {
+        const div = document.createElement("div");
+        div.className = "msg " + role;
+        div.textContent = texto;
+        const h = document.createElement("span");
+        h.className = "hora";
+        h.textContent = horaAgora();
+        div.appendChild(h);
+        log.appendChild(div);
+        rolar();
+    }
+
+    function mostrarDigitando(sim) {
+        if (sim && !digitando) {
+            digitando = document.createElement("div");
+            digitando.className = "msg assistant";
+            digitando.innerHTML = '<div class="digitando"><span></span><span></span><span></span></div>';
+            log.appendChild(digitando);
+            status.textContent = "digitando...";
+            rolar();
+        } else if (!sim && digitando) {
+            digitando.remove();
+            digitando = null;
+            status.textContent = "online";
+        }
+    }
+
+    const protocolo = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const chatSocket = new WebSocket(protocolo + window.location.host + "/ws/chat/" + roomName + "/");
+
+    chatSocket.onopen = () => { status.textContent = "online"; };
+
+    chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        const role = data.role || "assistant";
+        if (role === "user") {
+            addMensagem("user", data.message);
+            mostrarDigitando(true);
+        } else {
+            mostrarDigitando(false);
+            addMensagem(role, data.message);
+            if (role === "assistant") salvarSala(data.message);
+        }
+    };
+
+    chatSocket.onclose = function () {
+        mostrarDigitando(false);
+        status.textContent = "desconectado";
+        botao.disabled = true;
+        console.error("Chat socket closed unexpectedly");
+    };
+
+    function ajustarAltura() {
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    }
+    input.addEventListener("input", ajustarAltura);
+    input.focus();
+
+    input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            botao.click();
+        }
+    });
+
+    botao.onclick = function () {
+        const message = input.value.trim();
+        if (!message || chatSocket.readyState !== WebSocket.OPEN) return;
+        chatSocket.send(JSON.stringify({message: message}));
+        input.value = "";
+        ajustarAltura();
+        input.focus();
+    };
+</script>
 </body>
 </html>
