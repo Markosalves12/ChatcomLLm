@@ -81,6 +81,7 @@
     <div class="lista" id="lista"></div>
 </div>
 
+{{ salas|json_script:"salas-data" }}
 <script>
     const cores = ["#00a884", "#53bdeb", "#ff8a65", "#a78bfa", "#f59e0b", "#ef4444", "#10b981"];
     const corDe = n => cores[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % cores.length];
@@ -97,15 +98,14 @@
     input.addEventListener("keyup", e => { if (e.key === "Enter") abrir(input.value); });
     document.querySelector("#btn-abrir").onclick = () => abrir(input.value);
 
-    const salas = JSON.parse(localStorage.getItem("salas") || "{}");
-    const nomes = Object.keys(salas).sort((a, b) => salas[b].quando - salas[a].quando);
+    const salas = JSON.parse(document.getElementById("salas-data").textContent);
     const lista = document.querySelector("#lista");
 
-    if (!nomes.length) {
+    if (!salas.length) {
         lista.innerHTML = '<div class="vazio">Nenhuma conversa ainda.<br>Digite um nome acima para começar a falar com a IA.</div>';
     }
-    nomes.forEach(nome => {
-        const s = salas[nome];
+    salas.forEach(s => {
+        const nome = s.nome;
         const hora = new Date(s.quando).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
         const a = document.createElement("a");
         a.className = "item";
