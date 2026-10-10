@@ -1,98 +1,88 @@
 # chat/consumers.py
 
+import asyncio
 import json
 
-from asgiref.sync import async_to_sync
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 
+from .models import Mensagem, Sala
 from .services.lmstudio import chat
 
+# Quantas mensagens anteriores enviar para a IA como contexto
+LIMITE_CONTEXTO = 20
 
-class ChatConsumer(WebsocketConsumer):
 
-    def connect(self):
-        # Nome da sala vindo da URL
+class ChatConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-
-        # Nome do grupo do Channels
         self.room_group_name = f"chat_{self.room_name}"
 
-        # Entra no grupo
-        async_to_sync(self.channel_layer.group_add)(
-            self.room_group_name,
-            self.channel_name,
+        # Busca (ou cria) a sala no banco de forma assíncrona
+        self.sala, _ = await Sala.objects.aget_or_create(nome=self.room_name)
+
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+        # Envia o histórico salvo para o navegador
+        historico = [
+            {
+                "role": m.papel,
+                "message": m.conteudo,
+                "created_at": m.criada_em.isoformat(),
+            }
+            async for m in Mensagem.objects.filter(sala=self.sala)
+        ]
+        await self.send(text_data=json.dumps({"type": "history", "messages": historico}))
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def _salvar_e_enviar(self, papel, conteudo):
+        msg = await Mensagem.objects.acreate(sala=self.sala, papel=papel, conteudo=conteudo)
+        # Atualiza a data da sala (para ordenar a lista de conversas)
+        await Sala.objects.filter(pk=self.sala.pk).aupdate(atualizada_em=msg.criada_em)
+        await self.send(
+            text_data=json.dumps({
+                "role": papel,
+                "message": conteudo,
+                "created_at": msg.criada_em.isoformat(),
+            })
         )
 
-        # Aceita a conexão WebSocket
-        self.accept()
+    async def _contexto(self):
+        """Últimas mensagens da conversa, no formato esperado pela IA."""
+        ultimas = [
+            {"role": m.papel, "content": m.conteudo}
+            async for m in Mensagem.objects.filter(
+                sala=self.sala,
+                papel__in=[Mensagem.Papel.USUARIO, Mensagem.Papel.ASSISTENTE],
+            ).order_by("-criada_em", "-id")[:LIMITE_CONTEXTO]
+        ]
+        ultimas.reverse()
+        return ultimas
 
-    def disconnect(self, close_code):
-        # Sai do grupo
-        async_to_sync(self.channel_layer.group_discard)(
-            self.room_group_name,
-            self.channel_name,
-        )
-
-    def receive(self, text_data):
-        """
-        Recebe uma mensagem do navegador.
-        """
-
+    async def receive(self, text_data):
         try:
-            # Converte JSON recebido do navegador
             data = json.loads(text_data)
-
-            # Obtém a mensagem
             mensagem = data.get("message", "").strip()
-
-            # Não processa mensagem vazia
             if not mensagem:
                 return
 
-            # ---------------------------------------------------------
-            # 1. DEVOLVE A MENSAGEM DO USUÁRIO PARA O NAVEGADOR
-            # ---------------------------------------------------------
+            # 1. Salva e devolve a mensagem do usuário
+            await self._salvar_e_enviar(Mensagem.Papel.USUARIO, mensagem)
 
-            self.send(
-                text_data=json.dumps({
-                    "role": "user",
-                    "message": mensagem,
-                })
-            )
+            # 2. Consulta o LM Studio com o histórico da conversa.
+            #    A chamada HTTP é bloqueante, então roda em outra thread
+            #    para não travar o servidor.
+            contexto = await self._contexto()
+            resposta = await asyncio.to_thread(chat, contexto)
 
-            # ---------------------------------------------------------
-            # 2. ENVIA A MENSAGEM PARA O LM STUDIO
-            # ---------------------------------------------------------
-
-            resposta = chat(
-                [
-                    {
-                        "role": "user",
-                        "content": mensagem,
-                    }
-                ]
-            )
-
-            # ---------------------------------------------------------
-            # 3. DEVOLVE A RESPOSTA DA IA
-            # ---------------------------------------------------------
-
-            self.send(
-                text_data=json.dumps({
-                    "role": "assistant",
-                    "message": resposta,
-                })
-            )
+            # 3. Salva e devolve a resposta da IA
+            await self._salvar_e_enviar(Mensagem.Papel.ASSISTENTE, resposta)
 
         except Exception as e:
-
-            # Mostra o erro no terminal do Django
             print("ERRO LM STUDIO:", repr(e))
-
-            # Envia o erro para o navegador
-            self.send(
-                text_data=json.dumps({
-                    "role": "error",
-                    "message": f"Erro ao consultar o LM Studio: {e}",
-                })
+            await self._salvar_e_enviar(
+                Mensagem.Papel.ERRO, f"Erro ao consultar o LM Studio: {e}"
             )
