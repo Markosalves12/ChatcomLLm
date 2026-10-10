@@ -105,9 +105,7 @@
         </div>
     </header>
 
-    <div id="chat-log">
-        <div class="dia">HOJE</div>
-    </div>
+    <div id="chat-log"></div>
 
     <footer>
         <textarea id="chat-message-input" rows="1" placeholder="Digite uma mensagem"></textarea>
@@ -130,24 +128,34 @@
     document.querySelector("#avatar").textContent = roomName[0].toUpperCase();
     document.title = roomName.replace(/_/g, " ") + " · Chat";
 
-    const horaAgora = () => new Date().toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
+    const horaDe = iso => (iso ? new Date(iso) : new Date()).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
+    const diaDe = iso => {
+        const d = iso ? new Date(iso) : new Date();
+        const hoje = new Date(); const ontem = new Date(); ontem.setDate(hoje.getDate() - 1);
+        if (d.toDateString() === hoje.toDateString()) return "HOJE";
+        if (d.toDateString() === ontem.toDateString()) return "ONTEM";
+        return d.toLocaleDateString("pt-BR");
+    };
+    let ultimoDia = null;
 
-    function salvarSala(ultima) {
-        const salas = JSON.parse(localStorage.getItem("salas") || "{}");
-        salas[roomName] = {quando: Date.now(), ultima: ultima || (salas[roomName] || {}).ultima || ""};
-        localStorage.setItem("salas", JSON.stringify(salas));
-    }
-    salvarSala();
 
     function rolar() { log.scrollTop = log.scrollHeight; }
 
-    function addMensagem(role, texto) {
+    function addMensagem(role, texto, iso) {
+        const dia = diaDe(iso);
+        if (dia !== ultimoDia) {
+            const sep = document.createElement("div");
+            sep.className = "dia";
+            sep.textContent = dia;
+            log.appendChild(sep);
+            ultimoDia = dia;
+        }
         const div = document.createElement("div");
         div.className = "msg " + role;
         div.textContent = texto;
         const h = document.createElement("span");
         h.className = "hora";
-        h.textContent = horaAgora();
+        h.textContent = horaDe(iso);
         div.appendChild(h);
         log.appendChild(div);
         rolar();
@@ -175,14 +183,17 @@
 
     chatSocket.onmessage = function (e) {
         const data = JSON.parse(e.data);
+        if (data.type === "history") {
+            data.messages.forEach(m => addMensagem(m.role, m.message, m.created_at));
+            return;
+        }
         const role = data.role || "assistant";
         if (role === "user") {
-            addMensagem("user", data.message);
+            addMensagem("user", data.message, data.created_at);
             mostrarDigitando(true);
         } else {
             mostrarDigitando(false);
-            addMensagem(role, data.message);
-            if (role === "assistant") salvarSala(data.message);
+            addMensagem(role, data.message, data.created_at);
         }
     };
 
