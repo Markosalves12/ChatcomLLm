@@ -148,19 +148,20 @@
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const chatSocket = new WebSocket(protocol + window.location.host + '/ws/chat/' + roomName + '/');
 
-        function hora() {
-            return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        }
-
         function scrollDown() { log.scrollTop = log.scrollHeight; }
 
-        function addMessage(role, text) {
+        function hora(iso) {
+            const d = iso ? new Date(iso) : new Date();
+            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(role, text, iso) {
             const el = document.createElement('div');
             el.className = 'msg ' + role;
             el.textContent = text;
             const t = document.createElement('span');
             t.className = 'time';
-            t.textContent = hora();
+            t.textContent = hora(iso);
             if (role === 'user') {
                 const c = document.createElement('span');
                 c.className = 'check';
@@ -191,6 +192,10 @@
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
+            if (data.type === 'history') {
+                data.messages.forEach(m => addMessage(m.role, m.message, m.created_at));
+                return;
+            }
             const role = data.role || 'assistant';
             if (role === 'user') {
                 addMessage('user', data.message);
