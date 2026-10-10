@@ -1,0 +1,44 @@
+LM STUDIO — COMANDOS RÁPIDOS
+
+Projeto: ChatComLocalLM
+Modelo: google/gemma-4-e4b
+Servidor: porta 1234
+Django: porta 8000
+
+1. Listar modelos instalados
+lms ls
+
+2. Ver modelos atualmente carregados
+lms ps
+
+3. Iniciar o servidor LM Studio na porta 1234
+lms server start --port 1234
+
+4. Carregar o modelo
+lms load google/gemma-4-e4b
+
+5. Conferir se o modelo foi carregado
+lms ps
+
+RESULTADO ESPERADO:
+IDENTIFIER: google/gemma-4-e4b
+STATUS: IDLE
+
+CONFIGURAÇÃO DO DJANGO (.env)
+LMSTUDIO_URL=http://localhost:1234/v1
+LMSTUDIO_CHAT_MODEL=google/gemma-4-e4b
+
+OBSERVAÇÃO:
+O comando "lms load" apresentou "spawn EPERM" quando o servidor ainda não estava iniciado.
+A solução foi iniciar primeiro:
+
+lms server start --port 1234
+
+Depois:
+
+lms load google/gemma-4-e4b
+
+SEQUÊNCIA MAIS IMPORTANTE:
+lms server start --port 1234
+lms load google/gemma-4-e4b
+lms ps
