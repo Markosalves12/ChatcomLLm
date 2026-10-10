@@ -105,6 +105,13 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            # Espera até 20s se o banco estiver ocupado (evita "database is locked")
+            'timeout': 20,
+            # WAL permite leituras e escritas simultâneas (melhor para uso assíncrono)
+            'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
+            'transaction_mode': 'IMMEDIATE',
+        },
     }
 }
 
@@ -131,9 +138,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
