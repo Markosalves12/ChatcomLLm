@@ -1,237 +1,50 @@
 <!-- chat/templates/chat/room.html -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Chat - {{ room_name }}</title>
-    <style>
-        :root {
-            --wa-green: #00a884;
-            --wa-header: #f0f2f5;
-            --wa-bg: #efeae2;
-            --wa-out: #d9fdd3;
-            --wa-in: #ffffff;
-            --wa-text: #111b21;
-            --wa-muted: #667781;
-            --wa-error: #fde2e1;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; }
-        body {
-            font-family: "Segoe UI", Helvetica, Arial, sans-serif;
-            background: #d1d7db;
-            color: var(--wa-text);
-            display: flex;
-            justify-content: center;
-        }
-        body::before {
-            content: "";
-            position: fixed; top: 0; left: 0; right: 0;
-            height: 127px; background: var(--wa-green); z-index: -1;
-        }
-        .app {
-            width: 100%; max-width: 1000px; height: 100vh;
-            display: flex; flex-direction: column;
-            background: var(--wa-bg);
-            box-shadow: 0 6px 18px rgba(11,20,26,.15);
-        }
-        @media (min-width: 1000px) { .app { height: calc(100vh - 38px); margin-top: 19px; } }
-
-        header {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 16px; background: var(--wa-header);
-            border-left: 1px solid #d1d7db;
-        }
-        .avatar {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: var(--wa-green); color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 18px; flex-shrink: 0;
-        }
-        .contact { display: flex; flex-direction: column; }
-        .contact strong { font-size: 16px; font-weight: 500; }
-        .contact span { font-size: 13px; color: var(--wa-muted); }
-
-        #chat-log {
-            flex: 1; overflow-y: auto;
-            padding: 20px 6% 10px;
-            display: flex; flex-direction: column; gap: 4px;
-            background-color: var(--wa-bg);
-            background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
-            background-size: 18px 18px;
-        }
-        .day {
-            align-self: center; background: #fff; color: var(--wa-muted);
-            font-size: 12.5px; padding: 5px 12px; border-radius: 8px;
-            margin-bottom: 8px; box-shadow: 0 1px .5px rgba(11,20,26,.13);
-        }
-        .msg {
-            max-width: 65%; padding: 6px 9px 8px; border-radius: 7.5px;
-            font-size: 14.2px; line-height: 19px; position: relative;
-            box-shadow: 0 1px .5px rgba(11,20,26,.13);
-            white-space: pre-wrap; word-wrap: break-word;
-            animation: pop .15s ease-out;
-        }
-        .msg .time {
-            float: right; font-size: 11px; color: var(--wa-muted);
-            margin: 6px 0 -4px 10px;
-        }
-        .msg.user { align-self: flex-end; background: var(--wa-out); border-top-right-radius: 0; }
-        .msg.assistant { align-self: flex-start; background: var(--wa-in); border-top-left-radius: 0; }
-        .msg.error { align-self: center; background: var(--wa-error); max-width: 80%; font-size: 13px; }
-        .msg.user .check { color: #53bdeb; margin-left: 3px; }
-
-        .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
-        .typing i {
-            width: 7px; height: 7px; border-radius: 50%; background: #9aa5ab;
-            animation: blink 1.2s infinite;
-        }
-        .typing i:nth-child(2) { animation-delay: .2s; }
-        .typing i:nth-child(3) { animation-delay: .4s; }
-
-        footer {
-            display: flex; align-items: flex-end; gap: 8px;
-            padding: 8px 16px; background: var(--wa-header);
-        }
-        #chat-message-input {
-            flex: 1; resize: none; border: none; outline: none;
-            border-radius: 8px; padding: 10px 14px; font: inherit;
-            font-size: 15px; max-height: 120px; background: #fff;
-        }
-        #chat-message-submit {
-            width: 44px; height: 44px; border: none; border-radius: 50%;
-            background: var(--wa-green); color: #fff; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: filter .15s;
-        }
-        #chat-message-submit:hover { filter: brightness(.92); }
-        #chat-message-submit:disabled { opacity: .5; cursor: default; }
-
-        @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
-        @keyframes blink { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
-    </style>
+    <title>Chat Room</title>
 </head>
 <body>
-    <div class="app">
-        <header>
-            <div class="avatar">IA</div>
-            <div class="contact">
-                <strong>Assistente IA</strong>
-                <span id="status">conectando...</span>
-            </div>
-        </header>
-
-        <main id="chat-log">
-            <div class="day">Sala: {{ room_name }}</div>
-        </main>
-
-        <footer>
-            <textarea id="chat-message-input" rows="1" placeholder="Digite uma mensagem"></textarea>
-            <button id="chat-message-submit" title="Enviar">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path d="M1.1 21.8 23 12 1.1 2.2 1.1 9.8 16.6 12 1.1 14.2z"/>
-                </svg>
-            </button>
-        </footer>
-    </div>
-
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
+    <input id="chat-message-input" type="text" size="100"><br>
+    <input id="chat-message-submit" type="button" value="Send">
     {{ room_name|json_script:"room-name" }}
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
-        const log = document.getElementById('chat-log');
-        const input = document.getElementById('chat-message-input');
-        const sendBtn = document.getElementById('chat-message-submit');
-        const statusEl = document.getElementById('status');
-        let typingEl = null;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const chatSocket = new WebSocket(protocol + window.location.host + '/ws/chat/' + roomName + '/');
-
-        function scrollDown() { log.scrollTop = log.scrollHeight; }
-
-        function hora(iso) {
-            const d = iso ? new Date(iso) : new Date();
-            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function addMessage(role, text, iso) {
-            const el = document.createElement('div');
-            el.className = 'msg ' + role;
-            el.textContent = text;
-            const t = document.createElement('span');
-            t.className = 'time';
-            t.textContent = hora(iso);
-            if (role === 'user') {
-                const c = document.createElement('span');
-                c.className = 'check';
-                c.textContent = '✓✓';
-                t.appendChild(c);
-            }
-            el.appendChild(t);
-            log.appendChild(el);
-            scrollDown();
-        }
-
-        function showTyping() {
-            if (typingEl) return;
-            typingEl = document.createElement('div');
-            typingEl.className = 'msg assistant';
-            typingEl.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
-            log.appendChild(typingEl);
-            statusEl.textContent = 'digitando...';
-            scrollDown();
-        }
-
-        function hideTyping() {
-            if (typingEl) { typingEl.remove(); typingEl = null; }
-            statusEl.textContent = 'online';
-        }
-
-        chatSocket.onopen = () => { statusEl.textContent = 'online'; };
+        const chatSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
-            if (data.type === 'history') {
-                data.messages.forEach(m => addMessage(m.role, m.message, m.created_at));
-                return;
-            }
-            const role = data.role || 'assistant';
-            if (role === 'user') {
-                addMessage('user', data.message);
-                showTyping();
-            } else {
-                hideTyping();
-                addMessage(role, data.message);
+            document.querySelector('#chat-log').value += (data.message + '\n');
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.key === 'Enter') {  // enter, return
+                document.querySelector('#chat-message-submit').click();
             }
         };
 
-        chatSocket.onclose = function() {
-            hideTyping();
-            statusEl.textContent = 'desconectado';
-            sendBtn.disabled = true;
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
         };
-
-        function send() {
-            const message = input.value.trim();
-            if (!message || chatSocket.readyState !== WebSocket.OPEN) return;
-            chatSocket.send(JSON.stringify({ message }));
-            input.value = '';
-            input.style.height = 'auto';
-            input.focus();
-        }
-
-        input.addEventListener('input', () => {
-            input.style.height = 'auto';
-            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-        });
-
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-        });
-
-        sendBtn.onclick = send;
-        input.focus();
     </script>
 </body>
 </html>
